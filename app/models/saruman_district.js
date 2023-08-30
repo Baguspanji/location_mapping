@@ -42,6 +42,9 @@ module.exports = (sequelize, DataTypes) => {
     'longitude': {
       type: DataTypes.STRING
     },
+    'has_mapping': {
+      type: DataTypes.BOOLEAN
+    },
   }, {
     sequelize,
     modelName: 'saruman_district',

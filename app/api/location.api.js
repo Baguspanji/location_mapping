@@ -16,7 +16,6 @@ const excelJS = require('exceljs');
 
 const axios = require('axios');
 const { sequelize } = require("../models");
-const { Op } = require("sequelize");
 
 exports.getProvince = async (req, res) => {
     const data = await geoProvince.findAll()
@@ -138,13 +137,13 @@ exports.searchByLatLong = async (req, res) => {
 };
 
 exports.exportDistrict = async (req, res) => {
-    const data = await geoDistrict.findAll({
+    const data = await sarumanDistrict.findAll({
         include: [
             {
-                model: geoCity,
+                model: sarumanCity,
                 include: [
                     {
-                        model: geoProvince
+                        model: sarumanProvince
                     }
                 ]
             }
@@ -156,17 +155,21 @@ exports.exportDistrict = async (req, res) => {
 
     worksheet.columns = [
         { header: 'district_id', key: 'id', width: 10 },
+        { header: 'sicepat_id', key: 'sicepat_id', width: 10 },
         { header: 'Provinsi', key: 'province_name', width: 32 },
         { header: 'Kota/Kab.', key: 'city_name', width: 32 },
         { header: 'Kecamatan', key: 'district_name', width: 32 },
+        { header: 'has_mapping', key: 'has_mapping', width: 32 },
     ];
 
     dataExport = data.map((item) => {
         return {
             id: item.id,
+            sicepat_id: item.sicepat_id,
             district_name: item.name,
-            city_name: item.geo_city.name,
-            province_name: item.geo_city.geo_province.name
+            city_name: item.saruman_city.name,
+            province_name: item.saruman_city.saruman_province.name,
+            has_mapping: item.has_mapping ? 'Sudah' : ''
         }
     })
 
@@ -179,7 +182,7 @@ exports.exportDistrict = async (req, res) => {
 
     res.setHeader(
         "Content-Disposition",
-        "attachment; filename=" + "kecamatan sicepat.xlsx"
+        "attachment; filename=" + "kec saruman old.xlsx"
     );
 
     try {
@@ -233,6 +236,70 @@ exports.mappingDistrictSicepat = async (req, res) => {
         }
         t.commit();
 
+        res.json({
+            message: 'Success',
+            data
+        })
+    } catch (error) {
+        await t.rollback();
+        console.log(error)
+
+        res.json({
+            message: 'Failed',
+            error
+        })
+    }
+}
+
+exports.mappingDistrictRajaongkir = async (req, res) => {
+    const saruman_district = await sarumanDistrict.findAll()
+    
+    const t = await sequelize.transaction();
+    try {
+        var data = []
+        for (let i = 0; i < saruman_district.length; i++) {
+            const saruman = saruman_district[i];
+
+            const geo_district = await geoDistrict.findAll({
+                where: {
+                    name: saruman.name,
+                    rajaongkir_id: null
+                }
+            })
+
+            if (geo_district.length > 0 && geo_district.length <= 1) {
+                var district = geo_district[0]
+                await geoDistrict.update({
+                    rajaongkir_id: saruman.id,
+                    sicepat_id: saruman.sicepat_id
+                }, {
+                    where: {
+                        id: district.id
+                    },
+                    transaction: t
+                })
+
+                await sarumanDistrict.update({
+                    has_mapping: true
+                }, {
+                    where: {
+                        id: saruman.id
+                    },
+                    transaction: t
+                })
+
+                data.push({
+                    'saruman_id': saruman.id,
+                    'sicepat_id': saruman.sicepat_id,
+                    'saruman_name': saruman.name,
+                    'geo_id': district.id,
+                    'geo_name': district.name
+                })
+                // break
+            }
+        }
+        
+        await t.commit();
         res.json({
             message: 'Success',
             data
