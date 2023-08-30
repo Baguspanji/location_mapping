@@ -1,0 +1,193 @@
+<%- contentFor('body') %>
+
+    <style>
+        img {
+            width: 400px;
+        }
+
+        .card-upload {
+            width: 400px;
+            height: 200px;
+            padding: 10px;
+        }
+
+        .parent {
+            position: relative;
+        }
+
+        .child {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+    </style>
+
+    <div class="row">
+        <!-- left column -->
+        <div class="col-md-12">
+            <!-- jquery validation -->
+            <div class="card card-lightblue">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <%= title %>
+                    </h3>
+                </div>
+                <!-- /.card-header -->
+                <!-- form start -->
+                <form class="needs-validation"
+                    action="<%= title.split(' ')[0] == 'Tambah' ? '/item' : '/item/' + data.id %>" method="POST"
+                    novalidate>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Nama Barang</label>
+                            <input type="text" class="form-control" name="name" required=""
+                                value="<%= (typeof data !=='undefined' ) ? data.name : '' %>">
+                            <div class="invalid-feedback">
+                                Masukkan Nama Barang
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Harga</label>
+                            <input type="number" class="form-control" name="price" required=""
+                                value="<%= (typeof data !=='undefined' ) ? data.price : '' %>">
+                            <div class="invalid-feedback">
+                                Masukkan Harga
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Harga Coret</label>
+                            <input type="number" class="form-control" name="strike_price" required=""
+                                value="<%= (typeof data !=='undefined' ) ? data.strike_price : '' %>">
+                            <div class="invalid-feedback">
+                                Masukkan Harga Coret
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Gambar</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" id="customFile">
+                                <label class="custom-file-label" for="customFile"><%= (typeof data !=='undefined' ) ? data.image : 'Pilih Gambar' %></label>
+                            </div>
+
+                            <div class="show-image mt-2 mb-4 card-upload"></div>
+
+                            <div class="progress" style="display:none">
+                                <div id="progressBar" class="progress-bar bg-success" role="progressbar"
+                                    aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
+                                    <span class="sr-only">0%</span>
+                                </div>
+                            </div>
+
+                            <div class="error"></div>
+
+                            <div class="invalid-feedback">
+                                Masukkan Gambar
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /.card-body -->
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-success">
+                            <%= title.split(' ')[0] == ' Tambah' ? 'Simpan' : 'Update' %>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <!-- /.card -->
+        </div>
+        <!--/.col (left) -->
+        <!-- right column -->
+        <div class="col-md-6">
+
+        </div>
+        <!--/.col (right) -->
+    </div>
+
+
+    <script src="/assets/plugins/jquery/jquery.min.js"></script>
+    <script>
+        function addimage(image) {
+            var value =
+                `<div class="parent path-1">` +
+                `    <img src="${image}"` +
+                '        class="img-thumbnail mx-1 my-1" alt="...">' +
+                '    <input type="hidden"' +
+                `        name="image" value="${image}" id="path-1">` +
+                `    <a class="btn btn-danger child" onClick="btn_path()"><i class="fas fa-trash-alt"></i></a>` +
+                '</div>';
+            $(value).appendTo(".show-image");
+        }
+
+        function btn_path() {
+            var path = $(`#path-1`).val()
+            $(`.path-1`).remove()
+
+            $('.custom-file-label').text('Pilih Gambar');
+            $("input[type=file]").val('');
+        }
+
+        function image_upload(file) {
+            var formData = new FormData();
+            formData.append("file", file);
+
+            $.ajax({
+                type: 'POST',
+                url: '/upload',
+                data: formData,
+                cache: false,
+                processData: false,
+                contentType: false,
+                success: function (res) {
+                    var path = res.data
+                    var getUrl = window.location;
+
+                    addimage(getUrl.origin.split('/item/add')[0] + path);
+                    $('.custom-file-label').text(getUrl.origin.split('/item/add')[0] + path);
+                    $('.progress').hide();
+                },
+                error: function (res) {
+                    var err = eval("(" + res.responseText + ")");
+                    err.error.images.forEach(e => {
+                        $('.error').append(`<div class="text-danger mt-2">${e}</div>`)
+                    });
+
+                    $('.progress').hide();
+                },
+                xhr: function () {
+                    var xhr = new window.XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function (e) {
+                        if (e.lengthComputable) {
+                            // console.log('Bytes Loaded : ' + e.loaded);
+                            // console.log('Total Size : ' + e.total);
+                            // console.log('Persen : ' + (e.loaded / e.total));
+
+                            var percent = Math.round((e.loaded / e.total) * 100);
+
+                            $('#progressBar').attr('aria-valuenow', percent).css('width',
+                                percent + '%').text(percent + '%');
+
+                            if (percent === 100) {
+                                $('.progress').hide();
+                            }
+                        }
+                    });
+                    return xhr;
+                },
+            });
+        }
+
+        $("input[type=file]").on("change", function () {
+            $('.error').empty();
+            $('.progress').show();
+            var files = $(this)[0].files;
+            if (files.length > 0) {
+                image_upload(files[0]);
+            }
+        });
+
+        var images = ['<%= data.image %>'];
+        images.forEach(e => {
+            addimage(e)
+        });
+    </script>

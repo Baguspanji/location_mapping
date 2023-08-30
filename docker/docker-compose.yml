@@ -1,0 +1,19 @@
+version: '3.1'
+
+services:
+  node:
+    container_name: node
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    volumes:
+      - ../:/usr/src/app
+    networks:
+      - internal_net
+  
+networks:
+  internal_net:
+    driver: bridge
+    name: database_net

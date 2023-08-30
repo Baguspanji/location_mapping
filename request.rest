@@ -1,0 +1,65 @@
+@url = http://localhost:3000
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJiYWd1cyIsImVtYWlsIjoiYmFndXNAZ21haWwuY29tIiwibmFtZSI6IkJhZ3VzIFBhbmppIiwiaWF0IjoxNjg2Mjc2NTg2LCJleHAiOjE2ODYzNjI5ODZ9.aHtMLAarX7wGV847u5D584aAwOi9mhS2gw2nLhjeVTU
+
+GET {{ url }}/api/user HTTP/1.1
+Authorization: Bearer {{ token }}
+
+###
+
+POST {{ url }}/api/signup HTTP/1.1
+content-type: application/json
+
+{
+    "username": "bagus",
+    "name": "Bagus Panji",
+    "email": "bagus@gmail.com",
+    "password": "bagus123"
+}
+
+###
+
+POST {{ url }}/api/signin HTTP/1.1
+content-type: application/json
+
+{
+    "username": "bagus",
+    "password": "bagus123"
+}
+
+###
+
+GET {{ url }}/api/item?page=1&limit=10&keyword= HTTP/1.1
+
+###
+
+GET {{ url }}/api/item/1 HTTP/1.1
+
+###
+
+GET {{ url }}/api/order HTTP/1.1
+Authorization: Bearer {{ token }}
+
+###
+
+GET {{ url }}/api/order/1 HTTP/1.1
+Authorization: Bearer {{ token }}
+
+###
+
+POST {{ url }}/api/order HTTP/1.1
+Authorization: Bearer {{ token }}
+content-type: application/json
+
+{
+    "items": [
+        {
+            "item_id": 1,
+            "qty": 2
+        },
+        {
+            "item_id": 3,
+            "qty": 1
+        }
+    ]
+}
