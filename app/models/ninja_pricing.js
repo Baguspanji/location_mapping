@@ -20,10 +20,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       autoIncrement: true,
     },
-    'tier_code_1': {
+    'origin': {
       type: DataTypes.STRING,
     },
-    'tier_code_2': {
+    'destination': {
       type: DataTypes.STRING,
     },
     'price': {

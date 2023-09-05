@@ -21,6 +21,7 @@ const readExcel = require('read-excel-file/node');
 const readXLSX = require('xlsx');
 
 const axios = require('axios');
+const moment = require('moment');
 const { sequelize } = require("../models");
 const e = require("cors");
 
@@ -358,62 +359,54 @@ exports.mappingDistrictRajaongkir = async (req, res) => {
 }
 
 exports.getNinjaPricing = async (req, res) => {
+    const cities = await ninjaCityTranslate.findAll()
     const path = 'app/public/ninja_pricing.xlsx';
 
     var excels = await readExcel(path)
-
-    var destination = excels[0]
+    var destinations = excels[0]
 
     var data = []
+    var error = []
     const t = await sequelize.transaction();
     try {
-        for (let i = 1; i < destination.length; i++) {
-            const d = destination[i];
+        for (let o = 1; o < excels.length; o++) {
+            const origin = excels[o];
+            for (let d = 1; d < destinations.length; d++) {
+                const destination = cities.find((item) => item.city_name == destinations[d])
 
-            const city = await ninjaCityTranslate.findOne({
-                where: {
-                    city_name: d
-                }
-            })
-
-            for (let ex = 1; ex < excels.length; ex++) {
-                var origin = excels[ex]
-                for (let o = 1; o < origin.length; o++) {
-                    const pricing = await ninjaPricing.findOne({
-                        where: {
-                            'tier_code_1': origin[0],
-                            'tier_code_2': city.tier_code_1,
-                            'type': 'Standart'
-                        }
-                    })
-
-                    if (pricing) {
-                        await ninjaPricing.update({
-                            price: origin[o]
-                        }, {
-                            where: {
-                                id: pricing.id
-                            },
-                            transaction: t
-                        })
-                    } else {
-                        await ninjaPricing.create({
-                            tier_code_1: origin[0],
-                            tier_code_2: city.tier_code_1,
-                            price: origin[o],
-                            type: 'Standart'
-                        }, {
-                            transaction: t
-                        })
-                    }
-
-                    data.push({
+                const price = await ninjaPricing.findOne({
+                    where: {
                         origin: origin[0],
-                        destination: city.tier_code_1,
-                        price: origin[o],
-                        type: 'Standart'
+                        destination: destination.tier_code_1
+                    }
+                })
+
+                if (price) {
+                    await ninjaPricing.update({
+                        price: origin[d]
+                    }, {
+                        where: {
+                            id: price.id
+                        },
+                        transaction: t
+                    })
+                } else {
+                    await ninjaPricing.create({
+                        origin: origin[0],
+                        destination: destination.tier_code_1,
+                        price: origin[d],
+                        type: 'Standard'
+                    }, {
+                        transaction: t
                     })
                 }
+
+                data.push({
+                    origin: origin[0],
+                    destination: destination.tier_code_1,
+                    price: origin[d],
+                    type: 'Standard'
+                })
             }
         }
 
@@ -421,7 +414,79 @@ exports.getNinjaPricing = async (req, res) => {
 
         res.json({
             message: 'Success',
-            data
+            data,
+            error
+        })
+    } catch (error) {
+        res.json({
+            message: 'Failed',
+            error
+        })
+    }
+}
+
+exports.getNinjaEstimate = async (req, res) => {
+    const cities = await ninjaCityTranslate.findAll()
+    const path = 'app/public/ninja_estimate.xlsx';
+
+    var excels = await readExcel(path)
+    var destinations = excels[0]
+
+    var data = []
+    var error = []
+    const t = await sequelize.transaction();
+    try {
+        for (let o = 1; o < excels.length; o++) {
+            const origin = excels[o];
+            for (let d = 1; d < destinations.length; d++) {
+                const destination = cities.find((item) => item.city_name == destinations[d])
+
+                const price = await ninjaPricing.findOne({
+                    where: {
+                        origin: origin[0],
+                        destination: destination.tier_code_1
+                    }
+                })
+
+                var estimate = moment(origin[d], 'YYYY-MM-DD HH:mm:ss').format('MM-DD')
+                estimate = estimate.replace('0', "")
+                estimate = estimate.replace('-0', "-")
+
+                if (price) {
+                    await ninjaPricing.update({
+                        estimate: estimate
+                    }, {
+                        where: {
+                            id: price.id
+                        },
+                        transaction: t
+                    })
+                } else {
+                    await ninjaPricing.create({
+                        origin: origin[0],
+                        destination: destination.tier_code_1,
+                        estimate: estimate,
+                        type: 'Standard'
+                    }, {
+                        transaction: t
+                    })
+                }
+
+                // data.push({
+                //     origin: origin[0],
+                //     destination: destination.tier_code_1,
+                //     estimate: estimate,
+                //     type: 'Standard'
+                // })
+            }
+        }
+
+        await t.commit();
+
+        res.json({
+            message: 'Success',
+            data,
+            error
         })
     } catch (error) {
         res.json({
