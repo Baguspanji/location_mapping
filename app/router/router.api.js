@@ -16,5 +16,7 @@ module.exports = (app) =>{
 
     router.post('/search', api.location.searchByLatLong)
 
+    router.get('/ninja-pricing', api.location.getNinjaPricing)
+
     app.use('/api', router)
 }

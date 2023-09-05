@@ -13,10 +13,16 @@ const geoCity = require("../models").geo_city;
 const geoDistrict = require("../models").geo_district;
 const geoSubdistrict = require("../models").geo_subdistrict;
 
+const ninjaCityTranslate = require("../models").ninja_city_translate;
+const ninjaPricing = require("../models").ninja_pricing;
+
 const excelJS = require('exceljs');
+const readExcel = require('read-excel-file/node');
+const readXLSX = require('xlsx');
 
 const axios = require('axios');
 const { sequelize } = require("../models");
+const e = require("cors");
 
 exports.getProvince = async (req, res) => {
     const data = await geoProvince.findAll()
@@ -289,7 +295,7 @@ exports.mappingDistrictNinja = async (req, res) => {
 
 exports.mappingDistrictRajaongkir = async (req, res) => {
     const saruman_district = await sarumanDistrict.findAll()
-    
+
     const t = await sequelize.transaction();
     try {
         var data = []
@@ -334,7 +340,7 @@ exports.mappingDistrictRajaongkir = async (req, res) => {
                 // break
             }
         }
-        
+
         await t.commit();
         res.json({
             message: 'Success',
@@ -344,6 +350,80 @@ exports.mappingDistrictRajaongkir = async (req, res) => {
         await t.rollback();
         console.log(error)
 
+        res.json({
+            message: 'Failed',
+            error
+        })
+    }
+}
+
+exports.getNinjaPricing = async (req, res) => {
+    const path = 'app/public/ninja_pricing.xlsx';
+
+    var excels = await readExcel(path)
+
+    var destination = excels[0]
+
+    var data = []
+    const t = await sequelize.transaction();
+    try {
+        for (let i = 1; i < destination.length; i++) {
+            const d = destination[i];
+
+            const city = await ninjaCityTranslate.findOne({
+                where: {
+                    city_name: d
+                }
+            })
+
+            for (let ex = 1; ex < excels.length; ex++) {
+                var origin = excels[ex]
+                for (let o = 1; o < origin.length; o++) {
+                    const pricing = await ninjaPricing.findOne({
+                        where: {
+                            'tier_code_1': origin[0],
+                            'tier_code_2': city.tier_code_1,
+                            'type': 'Standart'
+                        }
+                    })
+
+                    if (pricing) {
+                        await ninjaPricing.update({
+                            price: origin[o]
+                        }, {
+                            where: {
+                                id: pricing.id
+                            },
+                            transaction: t
+                        })
+                    } else {
+                        await ninjaPricing.create({
+                            tier_code_1: origin[0],
+                            tier_code_2: city.tier_code_1,
+                            price: origin[o],
+                            type: 'Standart'
+                        }, {
+                            transaction: t
+                        })
+                    }
+
+                    data.push({
+                        origin: origin[0],
+                        destination: city.tier_code_1,
+                        price: origin[o],
+                        type: 'Standart'
+                    })
+                }
+            }
+        }
+
+        await t.commit();
+
+        res.json({
+            message: 'Success',
+            data
+        })
+    } catch (error) {
         res.json({
             message: 'Failed',
             error
