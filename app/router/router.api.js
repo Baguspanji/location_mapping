@@ -10,8 +10,9 @@ module.exports = (app) =>{
     router.get('/subdistrict', api.location.getSubdistrict)
     
     router.get('/district-export', api.location.exportDistrict)
-    router.get('/sicepat-mapping', api.location.mappingDistrictSicepat)
     router.get('/rajaongkir-mapping', api.location.mappingDistrictRajaongkir)
+    // router.get('/sicepat-mapping', api.location.mappingDistrictSicepat)
+    router.get('/ninja-mapping', api.location.mappingDistrictNinja)
 
     router.post('/search', api.location.searchByLatLong)
 

@@ -6,6 +6,7 @@ const sarumanDistrict = require("../models").saruman_district;
 const subdistrict = require("../models").saruman_subdistrict;
 
 const sicepatLocation = require("../models").sicepat_location;
+const ninjaLocation = require("../models").ninja_location;
 
 const geoProvince = require("../models").geo_province;
 const geoCity = require("../models").geo_city;
@@ -137,39 +138,20 @@ exports.searchByLatLong = async (req, res) => {
 };
 
 exports.exportDistrict = async (req, res) => {
-    const data = await sarumanDistrict.findAll({
-        include: [
-            {
-                model: sarumanCity,
-                include: [
-                    {
-                        model: sarumanProvince
-                    }
-                ]
-            }
-        ]
-    })
+    const data = await geoDistrict.findAll()
 
     const workbook = new excelJS.Workbook();
     const worksheet = workbook.addWorksheet('District Sisepat');
 
     worksheet.columns = [
         { header: 'district_id', key: 'id', width: 10 },
-        { header: 'sicepat_id', key: 'sicepat_id', width: 10 },
-        { header: 'Provinsi', key: 'province_name', width: 32 },
-        { header: 'Kota/Kab.', key: 'city_name', width: 32 },
-        { header: 'Kecamatan', key: 'district_name', width: 32 },
-        { header: 'has_mapping', key: 'has_mapping', width: 32 },
+        { header: 'ninja_id', key: 'ninja_id', width: 10 },
     ];
 
     dataExport = data.map((item) => {
         return {
             id: item.id,
-            sicepat_id: item.sicepat_id,
-            district_name: item.name,
-            city_name: item.saruman_city.name,
-            province_name: item.saruman_city.saruman_province.name,
-            has_mapping: item.has_mapping ? 'Sudah' : ''
+            ninja_id: item.ninja_id
         }
     })
 
@@ -229,6 +211,60 @@ exports.mappingDistrictSicepat = async (req, res) => {
                 }, {
                     where: {
                         id: sicepat.id
+                    },
+                    transaction: t
+                })
+            }
+        }
+        t.commit();
+
+        res.json({
+            message: 'Success',
+            data
+        })
+    } catch (error) {
+        await t.rollback();
+        console.log(error)
+
+        res.json({
+            message: 'Failed',
+            error
+        })
+    }
+}
+
+exports.mappingDistrictNinja = async (req, res) => {
+    const ninja_location = await ninjaLocation.findAll()
+
+    const t = await sequelize.transaction();
+    try {
+        var data = []
+        for (let i = 0; i < ninja_location.length; i++) {
+            const ninja = ninja_location[i];
+
+            const geo_district = await geoDistrict.findAll({
+                where: {
+                    name: ninja.district_name,
+                    // ninja_id: null
+                }
+            })
+
+            if (geo_district.length > 0 && geo_district.length <= 1) {
+                var district = geo_district[0]
+                await geoDistrict.update({
+                    ninja_id: ninja.id
+                }, {
+                    where: {
+                        id: district.id
+                    },
+                    transaction: t
+                })
+
+                await ninjaLocation.update({
+                    has_mapping: true
+                }, {
+                    where: {
+                        id: ninja.id
                     },
                     transaction: t
                 })
