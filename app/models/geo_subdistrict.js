@@ -34,6 +34,9 @@ module.exports = (sequelize, DataTypes) => {
     'long': {
       type: DataTypes.FLOAT
     },
+    'postal_code': {
+      type: DataTypes.STRING
+    },
   }, {
     sequelize,
     modelName: 'geo_subdistrict',

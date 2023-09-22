@@ -3,7 +3,7 @@ const {
   Model
 } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-  class ninja_location extends Model {
+  class pos_location extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
     }
   };
-  ninja_location.init({
+  pos_location.init({
     id: {
       allowNull: false,
       primaryKey: true,
@@ -41,11 +41,11 @@ module.exports = (sequelize, DataTypes) => {
     },
   }, {
     sequelize,
-    modelName: 'ninja_location',
-    tableName: 'ninja_location',
+    modelName: 'pos_location',
+    tableName: 'pos_location',
     createdAt: false,
     updatedAt: false,
     deletedAt: false,
   });
-  return ninja_location;
+  return pos_location;
 };

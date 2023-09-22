@@ -425,6 +425,86 @@ exports.getNinjaPricing = async (req, res) => {
     }
 }
 
+exports.getNinjaPricingSameday = async (req, res) => {
+    const cities = await ninjaCityTranslate.findAll()
+    const path = 'app/public/ninja_pricing_sameday.xlsx';
+
+    var excels = await readExcel(path)
+    var destinations = excels[0]
+
+    var data = []
+    var error = []
+    const t = await sequelize.transaction();
+    try {
+        for (let o = 1; o < excels.length; o++) {
+            const origin = excels[o]
+            for (let d = 1; d < destinations.length; d++) {
+                const destination = cities.find((item) => item.city_name == destinations[d])
+
+                // const price = await ninjaPricing.findOne({
+                //     where: {
+                //         origin: origin[0],
+                //         destination: destination.tier_code_1
+                //     }
+                // })
+
+                // if (price) {
+                //     await ninjaPricing.update({
+                //         price: origin[d]
+                //     }, {
+                //         where: {
+                //             id: price.id
+                //         },
+                //         transaction: t
+                //     })
+                // } else {
+                //     await ninjaPricing.create({
+                //         origin: origin[0],
+                //         destination: destination.tier_code_1,
+                //         price: origin[d],
+                //         estimate: '0',
+                //         type: 'Sameday'
+                //     }, {
+                //         transaction: t
+                //     })
+                // }
+
+                if (destination != undefined && data.find((item) => item.origin == origin[0] && item.destination == destination.tier_code_1) == undefined && origin[d] != null) {
+                    data.push({
+                        origin: origin[0],
+                        destination: destination.tier_code_1,
+                        price: origin[d],
+                        estimate: '0',
+                        type: 'Sameday',
+                        weight_gain: 3000
+                    })
+                } else if (origin[d] != null) {
+                    error.push({
+                        origin: origin[0],
+                        destination: destinations[d],
+                        price: origin[d],
+                        estimate: '0',
+                        type: 'Sameday'
+                    })
+                }
+            }
+        }
+
+        await t.commit();
+
+        res.json({
+            message: 'Success',
+            data,
+            error
+        })
+    } catch (error) {
+        res.json({
+            message: 'Failed',
+            error
+        })
+    }
+}
+
 exports.getNinjaEstimate = async (req, res) => {
     const cities = await ninjaCityTranslate.findAll()
     const path = 'app/public/ninja_estimate.xlsx';
@@ -493,5 +573,24 @@ exports.getNinjaEstimate = async (req, res) => {
             message: 'Failed',
             error
         })
+    }
+}
+
+exports.getPostalCode = async (req, res) => {
+    const subdistrict = await geoSubdistrict.findAll({
+        limit: 10
+    })
+
+    const t = await sequelize.transaction();
+
+    try {
+        for (let i = 0; i < subdistrict.length; i++) {
+            const subdistrict = array[i];
+            const getPostalCode = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${subdistrict.lat},${subdistrict.long}&key=AIzaSyBv_N2X7t6PtB6ot-1gcQhbyF96Kawzk9s`)
+
+            var postalCode = ''
+        }
+    } catch (error) {
+
     }
 }
