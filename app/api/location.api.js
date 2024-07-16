@@ -24,6 +24,7 @@ const axios = require('axios');
 const moment = require('moment');
 const { sequelize } = require("../models");
 const e = require("cors");
+const { Op } = require("sequelize");
 
 exports.getProvince = async (req, res) => {
     const data = await geoProvince.findAll()
@@ -524,15 +525,21 @@ exports.getNinjaEstimate = async (req, res) => {
                 const price = await ninjaPricing.findOne({
                     where: {
                         origin: origin[0],
-                        destination: destination.tier_code_1
+                        destination: destination.tier_code_1,
+                        estimate: null
                     }
                 })
 
-                var estimate = moment(origin[d], 'YYYY-MM-DD HH:mm:ss').format('MM-DD')
-                estimate = estimate.replace('0', "")
-                estimate = estimate.replace('-0', "-")
-
                 if (price) {
+                    var estimate = null
+                    if ((String)(origin[d]).includes('-')) {
+                        estimate = origin[d]
+                    } else {
+                        estimate = moment(origin[d], 'DD/MM/YY').format('MM-DD')
+                        estimate = estimate.replace('0', "")
+                        estimate = estimate.replace('-0', "-")
+                    }
+
                     await ninjaPricing.update({
                         estimate: estimate
                     }, {
@@ -541,23 +548,15 @@ exports.getNinjaEstimate = async (req, res) => {
                         },
                         transaction: t
                     })
-                } else {
-                    await ninjaPricing.create({
+
+                    data.push({
                         origin: origin[0],
                         destination: destination.tier_code_1,
                         estimate: estimate,
                         type: 'Standard'
-                    }, {
-                        transaction: t
                     })
                 }
 
-                // data.push({
-                //     origin: origin[0],
-                //     destination: destination.tier_code_1,
-                //     estimate: estimate,
-                //     type: 'Standard'
-                // })
             }
         }
 
@@ -574,6 +573,77 @@ exports.getNinjaEstimate = async (req, res) => {
             error
         })
     }
+}
+
+exports.getNinjaDisable = async (req, res) => {
+    const path = 'app/public/disable_location_ninja.xlsx';
+
+    var excels = await readExcel(path)
+    var destinations = excels[0]
+
+    var data = []
+    var error = []
+    var duplicate = []
+    const t = await sequelize.transaction();
+    // try {
+    for (let o = 1; o < excels.length; o++) {
+    // for (let o = 1; o < 5; o++) {
+        const origin = excels[o];
+        const price = await ninjaLocation.findOne({
+            where: {
+                tier_code_2: {
+                    [Op.like]: origin[1] + '%'
+                },
+                city_name: {
+                    [Op.eq]: origin[4]
+                },
+                district_name: {
+                    [Op.eq]: origin[5]
+                },
+                // deleted_at:{
+                //     [Op.eq] :  null
+                // },
+            }
+        })
+
+        if (price) {
+            // await ninjaLocation.update({
+            //     deleted_at: new Date()
+            // }, {
+            //     where: {
+            //         id: price.id
+            //     },
+            //     transaction: t
+            // })
+
+            if (data.find((item) => item.id == price.id)) {
+                duplicate.push(price)
+            } else {
+                data.push(price)
+            }
+        } else {
+            error.push({
+                city_name: origin[4],
+                district_name: origin[5]
+            })
+        }
+    }
+
+    await t.commit();
+
+    res.json({
+        message: 'Success',
+        data,
+        duplicate,
+        error,
+        total: data.length
+    })
+    // } catch (error) {
+    //     res.json({
+    //         message: 'Failed',
+    //         error
+    //     })
+    // }
 }
 
 exports.getPostalCode = async (req, res) => {
