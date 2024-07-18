@@ -18,6 +18,7 @@ const ninjaPricing = require("../models").ninja_pricing;
 
 const excelJS = require('exceljs');
 const readExcel = require('read-excel-file/node');
+const readExcelFile = require('read-excel-file/map');
 const readXLSX = require('xlsx');
 
 const axios = require('axios');
@@ -360,6 +361,7 @@ exports.mappingDistrictRajaongkir = async (req, res) => {
 }
 
 exports.getNinjaPricing = async (req, res) => {
+    // pricing
     const path = 'app/public/new_ninja_pricing.xlsx';
     var excelPrices = await readExcel(path)
     var originPricess = excelPrices[0]
@@ -400,17 +402,26 @@ exports.getNinjaPricing = async (req, res) => {
                 let keyPrice = dataPricing.findIndex((item) => item.origin == originsEstimates[o] && item.destination == destinations[0])
 
                 if (price) {
-                    var estimate = null
-                    if ((String)(destinations[d]).includes('-')) {
-                        estimate = destinations[d]
-                    } else {
-                        estimate = moment(destinations[d], 'DD/MM/YYYY').format('MM-DD')
-                        estimate = estimate.replace('0', "")
-                        estimate = estimate.replace('-0', "-")
-                    }
+                    // var estimate = null
+                    // if ((String)(destinations[o]).includes('-')) {
+                    //     estimate = destinations[o]
+                    // } else {
+                    //     estimate = moment(destinations[o], 'DD/MM/YYYY').format('MM-DD')
+                    //     estimate = estimate.replace('0', "")
+                    //     estimate = estimate.replace('-0', "-")
+                    // }
 
-                    dataPricing[keyPrice].estimate = estimate
-                    console.log({ origin: price.origin, destination: price.destination, 'type': 'estimate' });
+                    // if (estimate == 'Invalid date') {
+                    //     return res.json({
+                    //         message: 'Failed Estimate',
+                    //         error: { origin: price.origin, destination: price.destination },
+                    //         data: dataPricing
+                    //     })
+                    // }
+
+                    dataPricing[keyPrice].estimate = destinations[o]
+                    // dataPricing[keyPrice].estimate = estimate
+                    console.log({ origin: price.origin, destination: price.destination, type: 'estimate' });
                 }
             }
         }
@@ -421,6 +432,127 @@ exports.getNinjaPricing = async (req, res) => {
         })
     }
 
+    // insert to database
+    try {
+        for (let i = 0; i < dataPricing.length; i++) {
+            const price = dataPricing[i];
+
+            const data = await ninjaPricing.findOne({
+                where: {
+                    origin: price.origin,
+                    destination: price.destination,
+                    type: price.type
+                }
+            })
+
+            if (data) {
+                await ninjaPricing.update({
+                    price: price.price,
+                    estimate: price.estimate
+                }, {
+                    where: {
+                        id: data.id
+                    }
+                })
+            } else {
+                await ninjaPricing.create({
+                    origin: price.origin,
+                    destination: price.destination,
+                    price: price.price,
+                    estimate: price.estimate,
+                    type: price.type
+                })
+            }
+
+            console.log({ origin: price.origin, destination: price.destination, 'type': 'create' });
+        }
+
+        res.json({
+            message: 'Success',
+            length: dataPricing.length,
+            // data: dataPricing
+        })
+    } catch ({ name, message }) {
+        res.json({
+            message: 'Failed',
+            error: { name, message }
+        })
+    }
+}
+
+exports.getNinjaPricingCargo = async (req, res) => {
+    // pricing
+    const path = 'app/public/new_ninja_pricing_cargo.xlsx';
+    var excelPrices = await readExcel(path)
+    var originPricess = excelPrices[0]
+
+    var dataPricing = []
+    try {
+        for (let d = 1; d < excelPrices.length; d++) {
+            const destinations = excelPrices[d];
+            for (let o = 1; o < originPricess.length; o++) {
+                dataPricing.push({
+                    origin: originPricess[o],
+                    destination: destinations[0],
+                    price: destinations[o],
+                    estimate: null,
+                    type: 'Cargo'
+                })
+
+                console.log({ origin: originPricess[o], destination: destinations[0], 'type': 'price' });
+            }
+        }
+    } catch ({ name, message }) {
+        res.json({
+            message: 'Failed Pricing',
+            error: { name, message }
+        })
+    }
+
+    // estimate
+    const pathEstimate = 'app/public/new_ninja_estimate_cargo.xlsx';
+    var excelEstimates = await readExcel(pathEstimate)
+    var originsEstimates = excelEstimates[0]
+
+    try {
+        for (let d = 1; d < excelEstimates.length; d++) {
+            const destinations = excelEstimates[d];
+            for (let o = 1; o < originsEstimates.length; o++) {
+                let price = dataPricing.find((item) => item.origin == originsEstimates[o] && item.destination == destinations[0])
+                let keyPrice = dataPricing.findIndex((item) => item.origin == originsEstimates[o] && item.destination == destinations[0])
+
+                if (price) {
+                    // var estimate = null
+                    // if ((String)(destinations[o]).includes('-')) {
+                    //     estimate = destinations[o]
+                    // } else {
+                    //     estimate = moment(destinations[o], 'DD/MM/YYYY').format('MM-DD')
+                    //     estimate = estimate.replace('0', "")
+                    //     estimate = estimate.replace('-0', "-")
+                    // }
+
+                    // if (estimate == 'Invalid date') {
+                    //     return res.json({
+                    //         message: 'Failed Estimate',
+                    //         error: { origin: price.origin, destination: price.destination },
+                    //         data: dataPricing
+                    //     })
+                    // }
+
+                    dataPricing[keyPrice].estimate = destinations[o]
+                    // dataPricing[keyPrice].estimate = estimate
+                    console.log({ origin: price.origin, destination: price.destination, type: 'estimate' });
+                }
+            }
+        }
+    } catch ({ name, message }) {
+        res.json({
+            message: 'Failed Estimate',
+            error: { name, message }
+        })
+    }
+
+    // insert to database
     try {
         for (let i = 0; i < dataPricing.length; i++) {
             const price = dataPricing[i];
@@ -443,13 +575,13 @@ exports.getNinjaPricing = async (req, res) => {
             //         }
             //     })
             // } else {
-            await ninjaPricing.create({
-                origin: price.origin,
-                destination: price.destination,
-                price: price.price,
-                estimate: price.estimate,
-                type: price.type
-            })
+                await ninjaPricing.create({
+                    origin: price.origin,
+                    destination: price.destination,
+                    price: price.price,
+                    estimate: price.estimate,
+                    type: price.type
+                })
             // }
 
             console.log({ origin: price.origin, destination: price.destination, 'type': 'create' });
@@ -458,160 +590,12 @@ exports.getNinjaPricing = async (req, res) => {
         res.json({
             message: 'Success',
             length: dataPricing.length,
-            // data: dataPricing
+            data: dataPricing
         })
     } catch ({ name, message }) {
         res.json({
             message: 'Failed',
             error: { name, message }
-        })
-    }
-}
-
-exports.getNinjaPricingSameday = async (req, res) => {
-    const cities = await ninjaCityTranslate.findAll()
-    const path = 'app/public/ninja_pricing_sameday.xlsx';
-
-    var excels = await readExcel(path)
-    var destinations = excels[0]
-
-    var data = []
-    var error = []
-    const t = await sequelize.transaction();
-    try {
-        for (let o = 1; o < excels.length; o++) {
-            const origin = excels[o]
-            for (let d = 1; d < destinations.length; d++) {
-                const destination = cities.find((item) => item.city_name == destinations[d])
-
-                // const price = await ninjaPricing.findOne({
-                //     where: {
-                //         origin: origin[0],
-                //         destination: destination.tier_code_1
-                //     }
-                // })
-
-                // if (price) {
-                //     await ninjaPricing.update({
-                //         price: origin[d]
-                //     }, {
-                //         where: {
-                //             id: price.id
-                //         },
-                //         transaction: t
-                //     })
-                // } else {
-                //     await ninjaPricing.create({
-                //         origin: origin[0],
-                //         destination: destination.tier_code_1,
-                //         price: origin[d],
-                //         estimate: '0',
-                //         type: 'Sameday'
-                //     }, {
-                //         transaction: t
-                //     })
-                // }
-
-                if (destination != undefined && data.find((item) => item.origin == origin[0] && item.destination == destination.tier_code_1) == undefined && origin[d] != null) {
-                    data.push({
-                        origin: origin[0],
-                        destination: destination.tier_code_1,
-                        price: origin[d],
-                        estimate: '0',
-                        type: 'Sameday',
-                        weight_gain: 3000
-                    })
-                } else if (origin[d] != null) {
-                    error.push({
-                        origin: origin[0],
-                        destination: destinations[d],
-                        price: origin[d],
-                        estimate: '0',
-                        type: 'Sameday'
-                    })
-                }
-            }
-        }
-
-        await t.commit();
-
-        res.json({
-            message: 'Success',
-            data,
-            error
-        })
-    } catch (error) {
-        res.json({
-            message: 'Failed',
-            error
-        })
-    }
-}
-
-exports.getNinjaPricingCargo = async (req, res) => {
-    const cities = await ninjaCityTranslate.findAll()
-    const path = 'app/public/ninja_pricing_cargo.xlsx';
-
-    var excels = await readExcel(path)
-    var destinations = excels[0]
-
-    var data = []
-    var error = []
-    const t = await sequelize.transaction();
-    try {
-        for (let o = 1; o < excels.length; o++) {
-            const origin = excels[o];
-            for (let d = 1; d < destinations.length; d++) {
-                const destination = cities.find((item) => item.city_name == destinations[d])
-
-                const price = await ninjaPricing.findOne({
-                    where: {
-                        origin: origin[0],
-                        destination: destination.tier_code_1,
-                        type: 'Cargo'
-                    }
-                })
-
-                if (price) {
-                    await ninjaPricing.update({
-                        price: origin[d]
-                    }, {
-                        where: {
-                            id: price.id
-                        },
-                        transaction: t
-                    })
-                } else {
-                    await ninjaPricing.create({
-                        origin: origin[0],
-                        destination: destination.tier_code_1,
-                        price: origin[d],
-                        type: 'Cargo'
-                    }, {
-                        transaction: t
-                    })
-                }
-
-                data.push({
-                    origin: origin[0],
-                    destination: destination.tier_code_1,
-                    price: origin[d],
-                    type: 'Cargo'
-                })
-            }
-        }
-
-        await t.commit();
-
-        res.json({
-            message: 'Success',
-            data,
-            error
-        })
-    } catch (error) {
-        res.json({
-            message: 'Failed',
-            error
         })
     }
 }
