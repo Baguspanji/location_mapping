@@ -364,22 +364,22 @@ exports.getNinjaPricing = async (req, res) => {
     // pricing
     const path = 'app/public/new_ninja_pricing.xlsx';
     var excelPrices = await readExcel(path)
-    var originPricess = excelPrices[0]
+    var originPrices = excelPrices[0]
 
     var dataPricing = []
     try {
         for (let d = 1; d < excelPrices.length; d++) {
             const destinations = excelPrices[d];
-            for (let o = 1; o < originPricess.length; o++) {
+            for (let o = 1; o < originPrices.length; o++) {
                 dataPricing.push({
-                    origin: originPricess[o],
+                    origin: originPrices[o],
                     destination: destinations[0],
                     price: destinations[o],
                     estimate: null,
                     type: 'Standard'
                 })
 
-                console.log({ origin: originPricess[o], destination: destinations[0], 'type': 'price' });
+                console.log({ origin: originPrices[o], destination: destinations[0], 'type': 'price' });
             }
         }
     } catch ({ name, message }) {
@@ -484,22 +484,22 @@ exports.getNinjaPricingCargo = async (req, res) => {
     // pricing
     const path = 'app/public/new_ninja_pricing_cargo.xlsx';
     var excelPrices = await readExcel(path)
-    var originPricess = excelPrices[0]
+    var originPrices = excelPrices[0]
 
     var dataPricing = []
     try {
         for (let d = 1; d < excelPrices.length; d++) {
             const destinations = excelPrices[d];
-            for (let o = 1; o < originPricess.length; o++) {
+            for (let o = 1; o < originPrices.length; o++) {
                 dataPricing.push({
-                    origin: originPricess[o],
+                    origin: originPrices[o],
                     destination: destinations[0],
                     price: destinations[o],
                     estimate: null,
                     type: 'Cargo'
                 })
 
-                console.log({ origin: originPricess[o], destination: destinations[0], 'type': 'price' });
+                console.log({ origin: originPrices[o], destination: destinations[0], 'type': 'price' });
             }
         }
     } catch ({ name, message }) {
@@ -590,7 +590,7 @@ exports.getNinjaPricingCargo = async (req, res) => {
         res.json({
             message: 'Success',
             length: dataPricing.length,
-            data: dataPricing
+            // data: dataPricing
         })
     } catch ({ name, message }) {
         res.json({
