@@ -18,7 +18,7 @@ module.exports = (app) =>{
 
     router.get('/ninja-pricing', api.location.getNinjaPricing)
     router.get('/ninja-pricing-sameday', api.location.getNinjaPricingSameday)
-    router.get('/ninja-estimate', api.location.getNinjaEstimate)
+    router.get('/ninja-pricing-cargo', api.location.getNinjaPricingCargo)
     router.get('/ninja-disable', api.location.getNinjaDisable)
 
     router.get('/postal-code', api.location.getPostalCode)

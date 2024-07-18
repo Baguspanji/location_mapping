@@ -27,6 +27,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
     },
+    'tier_code_21': {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     'province_name': {
       type: DataTypes.STRING,
       allowNull: true,

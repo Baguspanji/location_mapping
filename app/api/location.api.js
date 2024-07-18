@@ -24,7 +24,7 @@ const axios = require('axios');
 const moment = require('moment');
 const { sequelize } = require("../models");
 const e = require("cors");
-const { Op } = require("sequelize");
+const { Op, or } = require("sequelize");
 
 exports.getProvince = async (req, res) => {
     const data = await geoProvince.findAll()
@@ -360,68 +360,110 @@ exports.mappingDistrictRajaongkir = async (req, res) => {
 }
 
 exports.getNinjaPricing = async (req, res) => {
-    const cities = await ninjaCityTranslate.findAll()
-    const path = 'app/public/ninja_pricing.xlsx';
+    const path = 'app/public/new_ninja_pricing.xlsx';
+    var excelPrices = await readExcel(path)
+    var originPricess = excelPrices[0]
 
-    var excels = await readExcel(path)
-    var destinations = excels[0]
-
-    var data = []
-    var error = []
-    const t = await sequelize.transaction();
+    var dataPricing = []
     try {
-        for (let o = 1; o < excels.length; o++) {
-            const origin = excels[o];
-            for (let d = 1; d < destinations.length; d++) {
-                const destination = cities.find((item) => item.city_name == destinations[d])
-
-                const price = await ninjaPricing.findOne({
-                    where: {
-                        origin: origin[0],
-                        destination: destination.tier_code_1
-                    }
-                })
-
-                if (price) {
-                    await ninjaPricing.update({
-                        price: origin[d]
-                    }, {
-                        where: {
-                            id: price.id
-                        },
-                        transaction: t
-                    })
-                } else {
-                    await ninjaPricing.create({
-                        origin: origin[0],
-                        destination: destination.tier_code_1,
-                        price: origin[d],
-                        type: 'Standard'
-                    }, {
-                        transaction: t
-                    })
-                }
-
-                data.push({
-                    origin: origin[0],
-                    destination: destination.tier_code_1,
-                    price: origin[d],
+        for (let d = 1; d < excelPrices.length; d++) {
+            const destinations = excelPrices[d];
+            for (let o = 1; o < originPricess.length; o++) {
+                dataPricing.push({
+                    origin: originPricess[o],
+                    destination: destinations[0],
+                    price: destinations[o],
+                    estimate: null,
                     type: 'Standard'
                 })
+
+                console.log({ origin: originPricess[o], destination: destinations[0], 'type': 'price' });
             }
         }
+    } catch ({ name, message }) {
+        res.json({
+            message: 'Failed Pricing',
+            error: { name, message }
+        })
+    }
 
-        await t.commit();
+    // estimate
+    const pathEstimate = 'app/public/new_ninja_estimate.xlsx';
+    var excelEstimates = await readExcel(pathEstimate)
+    var originsEstimates = excelEstimates[0]
+
+    try {
+        for (let d = 1; d < excelEstimates.length; d++) {
+            const destinations = excelEstimates[d];
+            for (let o = 1; o < originsEstimates.length; o++) {
+                let price = dataPricing.find((item) => item.origin == originsEstimates[o] && item.destination == destinations[0])
+                let keyPrice = dataPricing.findIndex((item) => item.origin == originsEstimates[o] && item.destination == destinations[0])
+
+                if (price) {
+                    var estimate = null
+                    if ((String)(destinations[d]).includes('-')) {
+                        estimate = destinations[d]
+                    } else {
+                        estimate = moment(destinations[d], 'DD/MM/YYYY').format('MM-DD')
+                        estimate = estimate.replace('0', "")
+                        estimate = estimate.replace('-0', "-")
+                    }
+
+                    dataPricing[keyPrice].estimate = estimate
+                    console.log({ origin: price.origin, destination: price.destination, 'type': 'estimate' });
+                }
+            }
+        }
+    } catch ({ name, message }) {
+        res.json({
+            message: 'Failed Estimate',
+            error: { name, message }
+        })
+    }
+
+    try {
+        for (let i = 0; i < dataPricing.length; i++) {
+            const price = dataPricing[i];
+
+            // const data = await ninjaPricing.findOne({
+            //     where: {
+            //         origin: price.origin,
+            //         destination: price.destination,
+            //         type: price.type
+            //     }
+            // })
+
+            // if (data) {
+            //     await ninjaPricing.update({
+            //         price: price.price,
+            //         estimate: price.estimate
+            //     }, {
+            //         where: {
+            //             id: data.id
+            //         }
+            //     })
+            // } else {
+            await ninjaPricing.create({
+                origin: price.origin,
+                destination: price.destination,
+                price: price.price,
+                estimate: price.estimate,
+                type: price.type
+            })
+            // }
+
+            console.log({ origin: price.origin, destination: price.destination, 'type': 'create' });
+        }
 
         res.json({
             message: 'Success',
-            data,
-            error
+            length: dataPricing.length,
+            // data: dataPricing
         })
-    } catch (error) {
+    } catch ({ name, message }) {
         res.json({
             message: 'Failed',
-            error
+            error: { name, message }
         })
     }
 }
@@ -506,9 +548,9 @@ exports.getNinjaPricingSameday = async (req, res) => {
     }
 }
 
-exports.getNinjaEstimate = async (req, res) => {
+exports.getNinjaPricingCargo = async (req, res) => {
     const cities = await ninjaCityTranslate.findAll()
-    const path = 'app/public/ninja_estimate.xlsx';
+    const path = 'app/public/ninja_pricing_cargo.xlsx';
 
     var excels = await readExcel(path)
     var destinations = excels[0]
@@ -526,37 +568,36 @@ exports.getNinjaEstimate = async (req, res) => {
                     where: {
                         origin: origin[0],
                         destination: destination.tier_code_1,
-                        estimate: null
+                        type: 'Cargo'
                     }
                 })
 
                 if (price) {
-                    var estimate = null
-                    if ((String)(origin[d]).includes('-')) {
-                        estimate = origin[d]
-                    } else {
-                        estimate = moment(origin[d], 'DD/MM/YY').format('MM-DD')
-                        estimate = estimate.replace('0', "")
-                        estimate = estimate.replace('-0', "-")
-                    }
-
                     await ninjaPricing.update({
-                        estimate: estimate
+                        price: origin[d]
                     }, {
                         where: {
                             id: price.id
                         },
                         transaction: t
                     })
-
-                    data.push({
+                } else {
+                    await ninjaPricing.create({
                         origin: origin[0],
                         destination: destination.tier_code_1,
-                        estimate: estimate,
-                        type: 'Standard'
+                        price: origin[d],
+                        type: 'Cargo'
+                    }, {
+                        transaction: t
                     })
                 }
 
+                data.push({
+                    origin: origin[0],
+                    destination: destination.tier_code_1,
+                    price: origin[d],
+                    type: 'Cargo'
+                })
             }
         }
 
@@ -587,7 +628,7 @@ exports.getNinjaDisable = async (req, res) => {
     const t = await sequelize.transaction();
     // try {
     for (let o = 1; o < excels.length; o++) {
-    // for (let o = 1; o < 5; o++) {
+        // for (let o = 1; o < 5; o++) {
         const origin = excels[o];
         const price = await ninjaLocation.findOne({
             where: {
