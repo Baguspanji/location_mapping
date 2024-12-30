@@ -614,6 +614,10 @@ exports.getNinjaDisable = async (req, res) => {
     for (let o = 1; o < excels.length; o++) {
         // for (let o = 1; o < 5; o++) {
         const origin = excels[o];
+        // SELECT *
+        // FROM `ninja_location`
+        // WHERE `tier_code_2` LIKE 'ID_B00176%' AND `city_name` = 'Kab. Sumenep' AND (`district_name` = 'Giliginting' OR `district_name` = 'Gili Ginting')
+        // LIMIT 1;
         const price = await ninjaLocation.findOne({
             where: {
                 tier_code_2: {
@@ -623,11 +627,11 @@ exports.getNinjaDisable = async (req, res) => {
                     [Op.eq]: origin[4]
                 },
                 district_name: {
-                    [Op.eq]: origin[5]
-                },
-                // deleted_at:{
-                //     [Op.eq] :  null
-                // },
+                    [Op.or]: [
+                        { [Op.eq]: origin[5] },
+                        { [Op.eq]: origin[6] }
+                    ]
+                }
             }
         })
 
@@ -648,6 +652,7 @@ exports.getNinjaDisable = async (req, res) => {
             }
         } else {
             error.push({
+                tier_code_2: origin[1],
                 city_name: origin[4],
                 district_name: origin[5]
             })
